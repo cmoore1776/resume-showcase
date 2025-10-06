@@ -2,12 +2,13 @@
 
 Interactive cloud-native infrastructure demonstration showcasing real-time latency monitoring with per-session Kubernetes pod provisioning on AWS EKS.
 
-**Live Demo**: [resume-showcase.christianmoore.me](https://resume-showcase.christianmoore.me)
+**Live Demo**: [cmoore1776.github.io/resume-showcase](https://cmoore1776.github.io/resume-showcase/)
 
 ## Architecture Overview
 
 This project demonstrates advanced Kubernetes orchestration patterns with a warm pod pool system:
 
+- **Latency Monitoring**: Real-time WebSocket ping/pong latency visualization in the browser
 - **Session Provisioner**: HTTP service that maintains a pool of 4 warm pods ready for instant session assignment
 - **Dynamic Pod Assignment**: Sub-second session startup by assigning pre-warmed pods from the pool
 - **Auto-Replenishment**: Background process automatically maintains the warm pod pool
@@ -26,23 +27,49 @@ This project demonstrates advanced Kubernetes orchestration patterns with a warm
 
 ```
 .
-├── frontend/              # React + Vite web application (deployed to GitHub Pages)
-├── backend/               # Python WebSocket server and session provisioner
-│   ├── server.py         # WebSocket server for latency monitoring
-│   ├── session_provisioner.py  # Pod pool manager and session API
-│   ├── Dockerfile        # WebSocket server container
-│   └── Dockerfile.provisioner  # Session provisioner container
-├── k8s/                   # Kubernetes manifests for EKS deployment
-│   ├── deployment.yaml   # WebSocket server deployment
-│   ├── provisioner-deployment.yaml  # Session provisioner with RBAC
-│   ├── target-group-binding.yaml    # ALB integration
-│   └── service.yaml      # Kubernetes services
-├── terraform/             # Infrastructure as Code for AWS resources
-│   ├── main.tf           # Root Terraform configuration
-│   └── modules/          # EKS, VPC, ALB, ACM, Route53, ECR modules
-└── .github/workflows/     # CI/CD automation
-    ├── deploy.yml        # Infrastructure + backend deployment pipeline
-    └── pages.yml         # Frontend deployment to GitHub Pages
+├── frontend/                        # React + Vite web application (deployed to GitHub Pages)
+│   ├── src/                         # Source code (React components, WebSocket client)
+│   ├── package.json                 # Frontend dependencies
+│   └── vite.config.ts               # Vite build configuration
+├── backend/                         # Python WebSocket server and session provisioner
+│   ├── server.py                    # WebSocket server for latency monitoring
+│   ├── session_provisioner.py       # Pod pool manager and session API
+│   ├── requirements.txt             # Python dependencies
+│   ├── Dockerfile                   # WebSocket server container
+│   └── Dockerfile.provisioner       # Session provisioner container
+├── k8s/                             # Kubernetes manifests for EKS deployment
+│   ├── namespace.yaml               # Kubernetes namespace definition
+│   ├── deployment.yaml              # WebSocket server deployment
+│   ├── service.yaml                 # Kubernetes services
+│   ├── provisioner-deployment.yaml  # Session provisioner deployment
+│   ├── provisioner-rbac.yaml        # RBAC for session provisioner
+│   ├── target-group-binding.yaml    # ALB target group integration
+│   ├── ingress.yaml                 # ALB ingress configuration
+│   └── aws-lb-controller-*.yaml     # AWS Load Balancer Controller configs
+├── terraform/                       # Infrastructure as Code for AWS resources
+│   ├── main.tf                      # Root Terraform configuration
+│   ├── variables.tf                 # Input variables
+│   ├── outputs.tf                   # Output values
+│   └── modules/                     # Terraform modules
+│       ├── vpc/                     # VPC with public/private subnets
+│       ├── eks/                     # EKS cluster configuration
+│       ├── alb/                     # Application Load Balancer
+│       ├── ecr/                     # Container registry
+│       ├── acm/                     # SSL/TLS certificates
+│       ├── github-oidc/             # GitHub Actions OIDC provider
+│       └── cloudfront/              # CloudFront CDN (if applicable)
+├── scripts/                         # Utility scripts
+│   ├── setup-git-hooks.sh           # Install pre-commit hooks
+│   └── create-provisioner-ecr.sh    # ECR repository setup
+├── .github/workflows/               # CI/CD automation
+│   ├── deploy.yml                   # Infrastructure + backend deployment
+│   ├── pages.yml                    # Frontend deployment to GitHub Pages
+│   ├── build.yml                    # Build validation on PRs
+│   ├── lint.yml                     # Code quality checks
+│   └── security.yml                 # Security scanning
+├── CLAUDE.md                        # Development guidelines for Claude Code
+├── RESUME.md                        # Resume content
+└── README.md                        # This file
 ```
 
 ## Features
@@ -104,7 +131,7 @@ python session_provisioner.py
 # Requires kubectl configured with EKS cluster access
 ```
 
-### Frontend
+### Frontend (Local Testing)
 
 ```bash
 cd frontend
@@ -161,6 +188,6 @@ kubectl apply -f k8s/
 - **Latency Monitoring**: Frontend displays real-time WebSocket latency
 - **Kubernetes Health**: Liveness/readiness probes ensure pod health
 
-## Documentation
+## Generative AI Integration
 
 See [CLAUDE.md](./CLAUDE.md) for detailed architecture and development guidelines.

@@ -48,6 +48,8 @@ _New Hampshire, (Remote) | April 2021 - Present_
 
 • Automated infrastructure, code, and system configration deployments using AWS CDK, Ansible, & GitLab
 
+• Implemented Generative AI tools (Amazon Q, Claude Sonnet) to accelerate development and automate routine tasks
+
 ### Cloud Security Engineer | Cimpress
 
 _Waltham, MA | July 2017 - March 2020_
