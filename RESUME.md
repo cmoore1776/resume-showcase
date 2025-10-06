@@ -8,33 +8,27 @@
 
 ## PROFESSIONAL SUMMARY
 
-Accomplished Cloud Solutions Architect with 17+ years of experience building and operating enterprise-scale infrastructure with specialization in HPC clusters for EDA tools and silicon design. Expert in AWS infrastructure, GitLab CI/CD, and security automation with proven track record of managing 10,000+ core compute clusters and achieving 40% cost optimization. Deep expertise in EDA tool optimization (Synopsys, Cadence, Mentor Graphics), high-performance storage solutions, and hybrid cloud architectures. Proficient in Python automation, Infrastructure as Code, and cloud security best practices.
+Accomplished Cloud Solutions Architect with 17+ years of experience building and operating enterprise-scale infrastructure. Expert in AWS infrastructure, GitLab CI/CD, and security automation with proven track record of designing and managing highly available, disaster recoverable, cost optimized services. Deep expertise in a broad range of web technologies, storage solutions, and hybrid cloud architectures. Proficient in Python automation, Infrastructure as Code, and cloud security best practices.
 
 ## TECHNICAL SKILLS
 
-**Languages & Scripting:** Python, Bash, PowerShell, YAML, HCL, SQL, TCL
+**Languages & Scripting:** Python, JavaScript, Bash, PowerShell, YAML, SQL, Markdown
 
-**AI Models & Tools:** Anthropic (Claude Code, Claude Sonnet), Cursor
+**AI Models & Tools:** Anthropic (Claude Code, Claude Sonnet), Cursor, GitHub Copilot
 
-**HPC & Job Schedulers:** Slurm, LSF, Grid Engine, AWS ParallelCluster, AWS Batch, PBS
+**Storage Systems:** AWS FSx for OpenZFS, EFS, EBS, NFS, S3
 
-**EDA Tools:** Synopsys (Design Compiler, VCS, Fusion Compiler), Cadence (Genus, Innovus, Xcelium), Mentor Graphics (Calibre, Tessent), Verilog, VHDL, SystemVerilog
+**CI/CD & Version Control:** Git, GitLab, GitHub, Bitbucket, Jenkins, GitHub Actions
 
-**Storage Systems:** AWS FSx for Lustre, EFS, EBS, NetApp ONTAP, IBM Spectrum Scale, NFS, S3
+**Container & Orchestration:** Kubernetes, Docker, EKS, ECS, Helm, Docker Compose
 
-**CI/CD & Version Control:** GitLab CI/CD, Jenkins, GitHub Actions, Git, Perforce, Bitbucket
+**Infrastructure as Code:** AWS CDK, CloudFormation, Terraform, Ansible
 
-**Container & Orchestration:** Kubernetes, Docker, EKS, ECS, Helm, Docker Swarm
+**Cloud Platforms:** AWS (EC2, VPC, EFS, FSx, S3, Lambda, CloudWatch, etc. - too many to list!)
 
-**Infrastructure as Code:** Terraform, CloudFormation, AWS CDK, Ansible, Puppet, Chef
+**Security & Compliance:** AWS Security Hub, GuardDuty, CloudTrail, IAM, KMS, Systems Manager
 
-**Cloud Platforms:** AWS (EC2, VPC, EFS, FSx, S3, Lambda, CloudWatch), Azure, GCP
-
-**Security & Compliance:** AWS Security Hub, GuardDuty, CloudTrail, IAM, KMS, Systems Manager, CIS Benchmarks
-
-**Monitoring & Observability:** CloudWatch, Prometheus, Grafana, ELK Stack, Datadog, Splunk
-
-**Operating Systems:** Linux (RHEL, CentOS, Ubuntu, Amazon Linux), Windows Server
+**Operating Systems:** Linux (RHEL, Ubuntu, Amazon Linux), macOS, Windows Server
 
 ## PROFESSIONAL EXPERIENCE
 
