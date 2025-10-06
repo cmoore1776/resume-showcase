@@ -1,0 +1,38 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: websocket-ingress
+  namespace: christianmoore
+  annotations:
+    alb.ingress.kubernetes.io/load-balancer-name: christianmoore-me-prod-alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:158674830910:certificate/59ea0e91-f40f-422c-8088-a0ff79d9760e
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    # WebSocket support
+    alb.ingress.kubernetes.io/backend-protocol: HTTP
+    alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
+    alb.ingress.kubernetes.io/target-group-attributes: stickiness.enabled=true,stickiness.lb_cookie.duration_seconds=86400
+spec:
+  ingressClassName: alb
+  rules:
+  - host: backend.resume-showcase.christianmoore.me
+    http:
+      paths:
+      # Session provisioner API
+      - path: /session
+        pathType: Prefix
+        backend:
+          service:
+            name: session-provisioner
+            port:
+              number: 80
+      # WebSocket connections
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: websocket-service
+            port:
+              number: 80

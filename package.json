@@ -1,0 +1,19 @@
+{
+  "name": "christianmoore-me",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"pnpm:dev:*\"",
+    "dev:frontend": "cd frontend && pnpm dev",
+    "dev:backend": "cd backend && . venv/bin/activate && python server.py",
+    "build": "cd frontend && pnpm build",
+    "build:docker": "cd backend && docker build -t websocket-server:latest .",
+    "install:all": "pnpm install:frontend && pnpm install:backend",
+    "install:frontend": "cd frontend && pnpm install",
+    "install:backend": "cd backend && python3 -m venv venv && . venv/bin/activate && pip install -r requirements.txt"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "packageManager": "pnpm@9.0.0"
+}

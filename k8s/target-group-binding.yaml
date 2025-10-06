@@ -1,0 +1,39 @@
+apiVersion: elbv2.k8s.aws/v1beta1
+kind: TargetGroupBinding
+metadata:
+  name: websocket-tgb
+  namespace: christianmoore
+spec:
+  serviceRef:
+    name: websocket-service
+    port: 80
+  targetGroupARN: BACKEND_TARGET_GROUP_ARN
+  targetType: instance
+  networking:
+    ingress:
+    - from:
+      - securityGroup:
+          groupID: ALB_SECURITY_GROUP_ID
+      ports:
+      - protocol: TCP
+        port: 32449
+---
+apiVersion: elbv2.k8s.aws/v1beta1
+kind: TargetGroupBinding
+metadata:
+  name: session-provisioner-tgb
+  namespace: christianmoore
+spec:
+  serviceRef:
+    name: session-provisioner
+    port: 80
+  targetGroupARN: SESSION_PROVISIONER_TARGET_GROUP_ARN
+  targetType: ip
+  networking:
+    ingress:
+    - from:
+      - securityGroup:
+          groupID: ALB_SECURITY_GROUP_ID
+      ports:
+      - protocol: TCP
+        port: 8081

@@ -1,0 +1,231 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: christianmoore-me-prod-websocket-server
+  ECR_REPOSITORY_PROVISIONER: christianmoore-me-prod-session-provisioner
+  EKS_CLUSTER_NAME: christianmoore-me-prod
+
+jobs:
+  deploy-infrastructure:
+    name: Deploy Infrastructure with Terraform
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    outputs:
+      eks_cluster_name: ${{ steps.terraform-output.outputs.eks_cluster_name }}
+      backend_target_group_arn: ${{ steps.terraform-output.outputs.backend_target_group_arn }}
+      session_provisioner_target_group_arn: ${{ steps.terraform-output.outputs.session_provisioner_target_group_arn }}
+      alb_security_group_id: ${{ steps.terraform-output.outputs.alb_security_group_id }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+
+      - name: Terraform Init
+        run: |
+          cd terraform
+          terraform init
+
+      - name: Terraform Plan
+        run: |
+          cd terraform
+          terraform plan -out=tfplan
+
+      - name: Terraform Apply
+        run: |
+          cd terraform
+          terraform apply -auto-approve tfplan
+
+      - name: Get Terraform Outputs
+        id: terraform-output
+        run: |
+          cd terraform
+          echo "eks_cluster_name=$(terraform output -raw eks_cluster_name || echo '${{ env.EKS_CLUSTER_NAME }}')" >> $GITHUB_OUTPUT
+          echo "backend_target_group_arn=$(terraform output -raw backend_target_group_arn)" >> $GITHUB_OUTPUT
+          echo "session_provisioner_target_group_arn=$(terraform output -raw session_provisioner_target_group_arn)" >> $GITHUB_OUTPUT
+          echo "alb_security_group_id=$(terraform output -raw alb_security_group_id)" >> $GITHUB_OUTPUT
+
+  deploy-backend:
+    needs: [deploy-infrastructure]
+    name: Deploy Backend to EKS
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push WebSocket server image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd backend
+          # Build once with multiple tags and use cache
+          docker buildx build \
+            --platform linux/arm64 \
+            --cache-from type=registry,ref=$ECR_REGISTRY/$ECR_REPOSITORY:latest \
+            --cache-to type=inline \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
+            --push \
+            .
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Build, tag, and push session provisioner image to Amazon ECR
+        id: build-provisioner-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd backend
+          # Build once with multiple tags and use cache
+          docker buildx build \
+            --platform linux/arm64 \
+            --cache-from type=registry,ref=$ECR_REGISTRY/$ECR_REPOSITORY_PROVISIONER:latest \
+            --cache-to type=inline \
+            -f Dockerfile.provisioner \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY_PROVISIONER:$IMAGE_TAG \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY_PROVISIONER:latest \
+            --push \
+            .
+          echo "provisioner_image=$ECR_REGISTRY/$ECR_REPOSITORY_PROVISIONER:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Configure kubectl
+        run: |
+          aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
+          kubectl version --client
+
+      - name: Install cert-manager (if not present)
+        run: |
+          if ! kubectl get namespace cert-manager &> /dev/null; then
+            echo "Installing cert-manager..."
+            kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.14.4/cert-manager.yaml
+            kubectl wait --for=condition=available --timeout=120s deployment -n cert-manager --all
+          else
+            echo "cert-manager already installed"
+          fi
+
+      - name: Configure AWS Load Balancer Controller webhook certificates
+        run: |
+          kubectl apply -f k8s/aws-lb-controller-cert.yaml
+          kubectl wait --for=condition=ready --timeout=60s certificate -n kube-system aws-load-balancer-serving-cert || true
+
+          # Patch the AWS Load Balancer Controller deployment to use certificates
+          kubectl patch deployment aws-load-balancer-controller -n kube-system --patch-file k8s/aws-lb-controller-deployment-patch.yaml || true
+          kubectl rollout status deployment/aws-load-balancer-controller -n kube-system --timeout=120s || true
+
+      - name: Apply Kubernetes manifests
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          BACKEND_TG_ARN: ${{ needs.deploy-infrastructure.outputs.backend_target_group_arn }}
+          SESSION_PROVISIONER_TG_ARN: ${{ needs.deploy-infrastructure.outputs.session_provisioner_target_group_arn }}
+          ALB_SG_ID: ${{ needs.deploy-infrastructure.outputs.alb_security_group_id }}
+        run: |
+          kubectl apply -f k8s/namespace.yaml
+
+          # Apply RBAC for session provisioner
+          kubectl apply -f k8s/provisioner-rbac.yaml
+
+          # Substitute ECR_REPOSITORY_URL placeholders with actual registry
+          sed "s|ECR_REPOSITORY_URL|$ECR_REGISTRY/$ECR_REPOSITORY|g" k8s/deployment.yaml | kubectl apply -f -
+          kubectl apply -f k8s/service.yaml
+
+          # Deploy session provisioner
+          sed -e "s|ECR_REPOSITORY_URL_PROVISIONER|$ECR_REGISTRY/$ECR_REPOSITORY_PROVISIONER|g" \
+              -e "s|WEBSOCKET_ECR_IMAGE|$ECR_REGISTRY/$ECR_REPOSITORY|g" \
+              k8s/provisioner-deployment.yaml | kubectl apply -f -
+
+          # Delete existing target group bindings (targetType is immutable, must recreate)
+          kubectl delete targetgroupbinding websocket-tgb -n christianmoore --ignore-not-found=true
+          kubectl delete targetgroupbinding session-provisioner-tgb -n christianmoore --ignore-not-found=true
+
+          # Apply target group bindings with actual ARNs and security group from Terraform
+          sed -e "s|BACKEND_TARGET_GROUP_ARN|$BACKEND_TG_ARN|g" \
+              -e "s|SESSION_PROVISIONER_TARGET_GROUP_ARN|$SESSION_PROVISIONER_TG_ARN|g" \
+              -e "s|ALB_SECURITY_GROUP_ID|$ALB_SG_ID|g" \
+              k8s/target-group-binding.yaml | kubectl apply -f -
+
+      - name: Update backend images
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          # Update WebSocket server
+          kubectl set image deployment/websocket-server \
+            websocket-server=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            -n christianmoore
+          kubectl rollout status deployment/websocket-server -n christianmoore --timeout=5m
+
+          # Update session provisioner
+          kubectl set image deployment/session-provisioner \
+            provisioner=$ECR_REGISTRY/$ECR_REPOSITORY_PROVISIONER:$IMAGE_TAG \
+            -n christianmoore
+
+          # Wait for rollout with timeout (allow failure for debugging)
+          if ! kubectl rollout status deployment/session-provisioner -n christianmoore --timeout=2m; then
+            echo "⚠️ Session provisioner rollout failed or timed out"
+
+            echo ""
+            echo "=== Session Provisioner Pods ==="
+            kubectl get pods -n christianmoore -l app=session-provisioner -o wide
+
+            echo ""
+            echo "=== Recent Events ==="
+            kubectl get events -n christianmoore --sort-by='.lastTimestamp' | tail -30
+
+            echo ""
+            echo "=== Pod Logs ==="
+            for pod in $(kubectl get pods -n christianmoore -l app=session-provisioner -o name); do
+              echo "Logs from $pod:"
+              kubectl logs -n christianmoore $pod --tail=100 --all-containers=true || echo "No logs available for $pod"
+              echo ""
+            done
+
+            echo ""
+            echo "=== Pod Describe ==="
+            kubectl describe pods -n christianmoore -l app=session-provisioner
+
+            echo ""
+            echo "⚠️ Session provisioner deployment failed but continuing workflow"
+            echo "The main WebSocket service should still be working"
+            exit 0  # Don't fail the workflow
+          else
+            echo "✅ Session provisioner deployed successfully"
+          fi
+
+      # Note: Frontend is deployed via GitHub Pages workflow (pages.yml)
