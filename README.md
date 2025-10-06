@@ -1,6 +1,6 @@
-# Resume Showcase - Cloud-Native Infrastructure Demo
+# Resume Showcase - Auto-Recovering Latency Test
 
-Interactive cloud-native infrastructure demonstration showcasing real-time latency monitoring with per-session Kubernetes pod provisioning on AWS EKS.
+Interactive demo showcasing real-time latency monitoring with per-session Kubernetes pod provisioning on AWS EKS.
 
 **Live Demo**: [cmoore1776.github.io/resume-showcase](https://cmoore1776.github.io/resume-showcase/)
 
