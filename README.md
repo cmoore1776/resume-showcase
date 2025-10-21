@@ -2,7 +2,7 @@
 
 Interactive demo showcasing real-time latency monitoring with per-session Kubernetes pod provisioning on AWS EKS.
 
-**Live Demo**: [cmoore1776.github.io/resume-showcase](https://cmoore1776.github.io/resume-showcase/)
+<!-- **Live Demo**: [cmoore1776.github.io/resume-showcase](https://cmoore1776.github.io/resume-showcase/) -->
 
 ## Architecture Overview
 
