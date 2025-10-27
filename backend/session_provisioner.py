@@ -311,7 +311,7 @@ class SessionProvisioner:
                 "session_id": session_id,
                 "status": "ready",
                 "pod_name": pod_details["pod_name"],
-                "websocket_url": f"wss://backend.resume-showcase.christianmoore.me/ws/{session_id}",
+                "websocket_url": f"wss://resume-showcase.k3s.christianmoore.me/ws/{session_id}",
                 "node_name": pod_details.get("node_name"),
             }
 

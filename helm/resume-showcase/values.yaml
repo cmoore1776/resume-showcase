@@ -56,7 +56,7 @@ sessionProvisioner:
   image:
     repository: resume-showcase-provisioner
     tag: latest
-    pullPolicy: IfNotPresent
+    pullPolicy: Always
 
   service:
     type: LoadBalancer
@@ -102,22 +102,20 @@ sessionProvisioner:
 ingress:
   enabled: true
   className: traefik
-  annotations:
-    # Enable WebSocket support
-    traefik.ingress.kubernetes.io/router.middlewares: default-compress@kubernetescrd
+  annotations: {}
 
   # Your domain name
-  host: backend.resume-showcase.example.com
+  host: resume-showcase.k3s.christianmoore.me
 
   # TLS configuration
   tls:
     enabled: true
     secretName: resume-showcase-tls
-    # For cert-manager integration (optional)
-    # certManager:
-    #   enabled: true
-    #   issuer: letsencrypt-prod
-    #   issuerKind: ClusterIssuer
+    # For cert-manager integration
+    certManager:
+      enabled: true
+      issuer: letsencrypt-production
+      issuerKind: ClusterIssuer
 
   # Path routing
   paths:
