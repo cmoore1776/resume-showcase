@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.websocketServer.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "resume-showcase.websocket.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.websocketServer.service.type }}
+  selector:
+    {{- include "resume-showcase.websocket.selectorLabels" . | nindent 4 }}
+  ports:
+  - port: {{ .Values.websocketServer.service.port }}
+    targetPort: {{ .Values.websocketServer.service.targetPort }}
+    protocol: TCP
+    name: websocket

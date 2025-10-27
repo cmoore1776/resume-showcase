@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.websocketServer.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "resume-showcase.websocket.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.websocketServer.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "resume-showcase.websocket.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "resume-showcase.websocket.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: websocket-server
+        image: {{ include "resume-showcase.websocket.image" . }}
+        imagePullPolicy: {{ .Values.websocketServer.image.pullPolicy }}
+        {{- with .Values.securityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        ports:
+        - containerPort: {{ .Values.websocketServer.service.targetPort }}
+          name: websocket
+          protocol: TCP
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: NAMESPACE
+          value: {{ .Values.namespace }}
+        {{- with .Values.websocketServer.livenessProbe }}
+        livenessProbe:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.websocketServer.readinessProbe }}
+        readinessProbe:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.websocketServer.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

@@ -41,7 +41,7 @@ jobs:
           retention-days: 7
 
   build-backend:
-    name: Build Backend Docker Image
+    name: Build Backend Docker Images
     runs-on: ubuntu-latest
 
     steps:
@@ -51,7 +51,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Docker image
+      - name: Build WebSocket server image
         uses: docker/build-push-action@v6
         with:
           context: ./backend
@@ -59,11 +59,24 @@ jobs:
           tags: websocket-server:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          outputs: type=docker,dest=/tmp/backend-image.tar
+          outputs: type=docker,dest=/tmp/websocket-image.tar
 
-      - name: Upload backend image artifact
+      - name: Build session provisioner image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile.provisioner
+          push: false
+          tags: session-provisioner:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          outputs: type=docker,dest=/tmp/provisioner-image.tar
+
+      - name: Upload backend images artifact
         uses: actions/upload-artifact@v4
         with:
-          name: backend-image
-          path: /tmp/backend-image.tar
+          name: backend-images
+          path: |
+            /tmp/websocket-image.tar
+            /tmp/provisioner-image.tar
           retention-days: 7

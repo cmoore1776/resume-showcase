@@ -1,6 +1,6 @@
 # Resume Showcase - Auto-Recovering Latency Test
 
-Interactive demo showcasing real-time latency monitoring with per-session Kubernetes pod provisioning on AWS EKS.
+Interactive demo showcasing real-time latency monitoring with per-session Kubernetes pod provisioning.
 
 **Live Demo**: [cmoore1776.github.io/resume-showcase](https://cmoore1776.github.io/resume-showcase/)
 
@@ -37,36 +37,26 @@ This project demonstrates advanced Kubernetes orchestration patterns with a warm
 │   ├── requirements.txt             # Python dependencies
 │   ├── Dockerfile                   # WebSocket server container
 │   └── Dockerfile.provisioner       # Session provisioner container
-├── k8s/                             # Kubernetes manifests for EKS deployment
-│   ├── namespace.yaml               # Kubernetes namespace definition
-│   ├── deployment.yaml              # WebSocket server deployment
-│   ├── service.yaml                 # Kubernetes services
-│   ├── provisioner-deployment.yaml  # Session provisioner deployment
-│   ├── provisioner-rbac.yaml        # RBAC for session provisioner
-│   ├── target-group-binding.yaml    # ALB target group integration
-│   ├── ingress.yaml                 # ALB ingress configuration
-│   └── aws-lb-controller-*.yaml     # AWS Load Balancer Controller configs
-├── terraform/                       # Infrastructure as Code for AWS resources
-│   ├── main.tf                      # Root Terraform configuration
-│   ├── variables.tf                 # Input variables
-│   ├── outputs.tf                   # Output values
-│   └── modules/                     # Terraform modules
-│       ├── vpc/                     # VPC with public/private subnets
-│       ├── eks/                     # EKS cluster configuration
-│       ├── alb/                     # Application Load Balancer
-│       ├── ecr/                     # Container registry
-│       ├── acm/                     # SSL/TLS certificates
-│       ├── github-oidc/             # GitHub Actions OIDC provider
-│       └── cloudfront/              # CloudFront CDN (if applicable)
+├── helm/                            # Helm charts for k3s deployment
+│   └── resume-showcase/             # Main Helm chart
+│       ├── Chart.yaml               # Chart metadata
+│       ├── values.yaml              # Default configuration values
+│       └── templates/               # Kubernetes resource templates
+│           ├── namespace.yaml       # Namespace
+│           ├── websocket-*.yaml     # WebSocket server resources
+│           ├── provisioner-*.yaml   # Session provisioner resources
+│           └── ingress.yaml         # Traefik ingress configuration
+├── k8s/                             # Raw Kubernetes manifests (legacy EKS deployment)
+├── terraform/                       # Terraform IaC for AWS EKS (legacy)
 ├── scripts/                         # Utility scripts
-│   ├── setup-git-hooks.sh           # Install pre-commit hooks
-│   └── create-provisioner-ecr.sh    # ECR repository setup
 ├── .github/workflows/               # CI/CD automation
-│   ├── deploy.yml                   # Infrastructure + backend deployment
+│   ├── deploy-k3s.yml               # k3s deployment (current)
+│   ├── deploy.yml                   # AWS EKS deployment (legacy)
 │   ├── pages.yml                    # Frontend deployment to GitHub Pages
 │   ├── build.yml                    # Build validation on PRs
 │   ├── lint.yml                     # Code quality checks
 │   └── security.yml                 # Security scanning
+├── K3S_DEPLOYMENT.md                # k3s deployment guide
 ├── CLAUDE.md                        # Development guidelines for Claude Code
 ├── RESUME.md                        # Resume content
 └── README.md                        # This file
@@ -102,14 +92,21 @@ This project demonstrates advanced Kubernetes orchestration patterns with a warm
 
 ### Infrastructure
 
+**Current (k3s)**:
+- **Container Orchestration**: k3s (lightweight Kubernetes)
+- **Infrastructure as Code**: Helm 3 charts
+- **Networking**: Traefik ingress controller (built-in with k3s)
+- **CI/CD**: GitHub Actions
+- **Container Registry**: Docker Hub or local registry
+- **TLS**: cert-manager with Let's Encrypt
+- **Monitoring**: Prometheus + Grafana (optional)
+
+**Legacy (AWS EKS)**:
 - **Cloud Provider**: AWS
 - **Container Orchestration**: Amazon EKS (Kubernetes 1.34)
 - **Infrastructure as Code**: Terraform 1.0+
-- **Networking**: Application Load Balancer, VPC with public/private subnets
-- **CI/CD**: GitHub Actions with OIDC authentication
+- **Networking**: Application Load Balancer, VPC
 - **Container Registry**: Amazon ECR
-- **DNS**: Route53 with ACM certificates
-- **Monitoring**: Datadog + Grafana
 
 ## Local Development
 
@@ -154,23 +151,55 @@ docker run -p 8081:8081 session-provisioner:latest
 
 ## Deployment
 
-The project uses GitHub Actions for automated deployment:
+### Option 1: k3s On-Premise (Recommended)
 
-1. **Infrastructure**: Terraform provisions EKS cluster, VPC, ALB, ECR, Route53
-2. **Backend Images**: Multi-arch Docker builds pushed to ECR with layer caching
-3. **Kubernetes Deployment**: Manifests applied to EKS, warm pod pool initialized
-4. **Frontend**: Built and deployed to GitHub Pages
+See **[K3S_DEPLOYMENT.md](./K3S_DEPLOYMENT.md)** for comprehensive deployment guide.
 
-### Manual Deployment
+**Quick Start**:
+
+```bash
+# 1. Install k3s on your server
+curl -sfL https://get.k3s.io | sh -
+
+# 2. Build and push images to Docker Hub
+docker login
+docker build -t your-username/resume-showcase-websocket:latest ./backend
+docker build -f ./backend/Dockerfile.provisioner -t your-username/resume-showcase-provisioner:latest ./backend
+docker push your-username/resume-showcase-websocket:latest
+docker push your-username/resume-showcase-provisioner:latest
+
+# 3. Configure Helm values
+cp helm/resume-showcase/values.yaml helm/my-values.yaml
+# Edit helm/my-values.yaml with your settings
+
+# 4. Deploy with Helm
+helm install resume-showcase ./helm/resume-showcase \
+  --values helm/my-values.yaml \
+  --create-namespace
+
+# 5. Verify deployment
+kubectl get all -n resume-showcase
+kubectl get ingress -n resume-showcase
+```
+
+**Benefits**:
+- Run on your own hardware (no cloud costs)
+- Simple Helm-based deployment
+- Built-in Traefik ingress with k3s
+- Easy to customize and maintain
+- Fast local development cycle
+
+### Option 2: AWS EKS (Legacy)
+
+**Note**: The AWS EKS deployment is legacy and uses Terraform + raw Kubernetes manifests.
 
 ```bash
 # Deploy infrastructure
 cd terraform
 terraform init
-terraform plan
 terraform apply
 
-# Build and push images
+# Build and push images to ECR
 aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <account>.dkr.ecr.us-east-1.amazonaws.com
 cd backend
 docker buildx build --platform linux/arm64 -t <account>.dkr.ecr.us-east-1.amazonaws.com/websocket-server:latest --push .
@@ -180,6 +209,15 @@ docker buildx build --platform linux/arm64 -f Dockerfile.provisioner -t <account
 aws eks update-kubeconfig --name christianmoore-me-prod --region us-east-1
 kubectl apply -f k8s/
 ```
+
+### CI/CD
+
+GitHub Actions workflows automate builds and deployments:
+
+- **`.github/workflows/deploy-k3s.yml`**: Builds images and pushes to Docker Hub
+- **`.github/workflows/deploy.yml`**: Legacy AWS EKS deployment
+- **`.github/workflows/pages.yml`**: Frontend deployment to GitHub Pages
+- **`.github/workflows/build.yml`**: PR build validation
 
 ## Monitoring
 

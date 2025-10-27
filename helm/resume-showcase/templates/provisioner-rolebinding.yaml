@@ -1,0 +1,17 @@
+{{- if .Values.rbac.create -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "resume-showcase.serviceAccountName" . }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "resume-showcase.provisioner.labels" . | nindent 4 }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "resume-showcase.serviceAccountName" . }}
+  namespace: {{ .Values.namespace }}
+roleRef:
+  kind: Role
+  name: {{ include "resume-showcase.serviceAccountName" . }}
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}

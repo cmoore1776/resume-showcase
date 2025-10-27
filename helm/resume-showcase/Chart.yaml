@@ -1,0 +1,14 @@
+apiVersion: v2
+name: resume-showcase
+description: Interactive cloud-native resume showcase with warm pod pool and per-session provisioning
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - websocket
+  - kubernetes
+  - session-provisioning
+  - cloud-native
+maintainers:
+  - name: Christian Moore
+home: https://github.com/christianmoore/resume-showcase

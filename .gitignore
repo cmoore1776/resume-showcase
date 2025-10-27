@@ -91,6 +91,7 @@ frontend/node_modules/
 backend/venv/
 backend/__pycache__/
 backend/*.pyc
+backend/.ruff_cache/
 
 # Monitoring & Analytics
 .posthog/

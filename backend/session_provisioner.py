@@ -17,13 +17,13 @@ from kubernetes.client.rest import ApiException
 class SessionProvisioner:
     """Provisions dedicated Kubernetes pods for WebSocket sessions."""
 
-    def __init__(self, namespace="christianmoore", pool_size=4):
-        self.namespace = namespace
+    def __init__(self, namespace=None, pool_size=None):
+        self.namespace = namespace or os.getenv("NAMESPACE", "resume-showcase")
+        self.pool_size = pool_size or int(os.getenv("POOL_SIZE", "4"))
         ecr_url = os.getenv("ECR_REPOSITORY_URL", "websocket-server")
         # Add :latest tag if not already present
         self.ecr_image = ecr_url if ":" in ecr_url else f"{ecr_url}:latest"
         self.aws_region = os.getenv("AWS_REGION", "us-east-1")
-        self.pool_size = pool_size
         self.available_pods = []  # Pool of warm pods ready for assignment
 
         print(f"[{datetime.now().isoformat()}] Initializing SessionProvisioner")

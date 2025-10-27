@@ -25,3 +25,5 @@ terraform.rc
 
 # Lock file
 .terraform.lock.hcl
+
+.ruff_cache/

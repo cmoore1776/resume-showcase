@@ -10,7 +10,7 @@ Interactive technical demonstration website showcasing cloud-native infrastructu
 
 **Frontend**: React-based web application (deployed to GitHub Pages) displaying a real-time latency graph showing WebSocket ping/pong latency to the backend.
 
-**Backend**: AWS EKS cluster with warm pod pool and per-session pod provisioning:
+**Backend**: Kubernetes cluster (k3s on-premise or AWS EKS) with warm pod pool and per-session pod provisioning:
 
 - **Session Provisioner**: HTTP service maintaining a pool of 4 warm pods ready for instant assignment
 - Each browser session gets a dedicated Kubernetes pod (assigned from pool or created on-demand)
@@ -57,14 +57,18 @@ This architecture showcases:
 
 ### Infrastructure
 
-- **Cloud Provider**: AWS
-- **Container Orchestration**: Amazon EKS (Kubernetes 1.34)
-- **Infrastructure as Code**: Terraform 1.0+
-- **Networking**: Application Load Balancer, VPC with public/private subnets, Security Groups
-- **CI/CD**: GitHub Actions with OIDC authentication
-- **Container Registry**: Amazon ECR with layer caching for faster builds
-- **DNS**: Route53 with ACM certificates
-- **Monitoring**: Datadog + Grafana (configured)
+- **Container Orchestration**: k3s (lightweight Kubernetes) or Amazon EKS
+- **Infrastructure as Code**: Helm 3 charts for k3s deployment
+- **Deployment Options**:
+  - **On-Premise k3s**: Helm-based deployment to on-premise k3s cluster (recommended)
+  - **AWS EKS** (legacy): Terraform + raw Kubernetes manifests (see `terraform/` directory)
+- **Networking**:
+  - k3s: Traefik ingress controller (built-in)
+  - EKS: Application Load Balancer, VPC, Security Groups
+- **CI/CD**: GitHub Actions
+- **Container Registry**: Docker Hub or local registry
+- **TLS**: cert-manager with Let's Encrypt or manual certificates
+- **Monitoring**: Prometheus + Grafana (optional)
 
 ## Development Commands
 
@@ -94,45 +98,68 @@ pnpm test
 
 ```bash
 # Build WebSocket server Docker image
-docker build -t websocket-server:latest ./backend
+docker build -t your-username/resume-showcase-websocket:latest ./backend
 
 # Build session provisioner Docker image
-docker build -f ./backend/Dockerfile.provisioner -t session-provisioner:latest ./backend
+docker build -f ./backend/Dockerfile.provisioner -t your-username/resume-showcase-provisioner:latest ./backend
 
 # Run WebSocket server locally
-docker run -p 8080:8080 websocket-server:latest
+docker run -p 8080:8080 your-username/resume-showcase-websocket:latest
 
-# Run session provisioner locally (requires kubectl access to EKS)
-docker run -p 8081:8081 session-provisioner:latest
+# Run session provisioner locally (requires kubectl access to cluster)
+docker run -p 8081:8081 your-username/resume-showcase-provisioner:latest
 
-# Push to ECR (after AWS authentication)
-docker buildx build --platform linux/arm64 -t <account>.dkr.ecr.<region>.amazonaws.com/websocket-server:latest --push ./backend
-docker buildx build --platform linux/arm64 -f ./backend/Dockerfile.provisioner -t <account>.dkr.ecr.<region>.amazonaws.com/session-provisioner:latest --push ./backend
+# Push to Docker Hub
+docker login
+docker push your-username/resume-showcase-websocket:latest
+docker push your-username/resume-showcase-provisioner:latest
+
+# Push to local registry (for on-premise deployments)
+docker tag your-username/resume-showcase-websocket:latest localhost:5000/resume-showcase-websocket:latest
+docker push localhost:5000/resume-showcase-websocket:latest
 ```
 
 ### Infrastructure Management
+
+#### k3s Deployment (Recommended)
+
+```bash
+# Install Helm chart
+helm install resume-showcase ./helm/resume-showcase \
+  --values helm/my-values.yaml \
+  --create-namespace
+
+# Upgrade existing deployment
+helm upgrade --install resume-showcase ./helm/resume-showcase \
+  --values helm/my-values.yaml
+
+# Check deployment status
+kubectl get all -n resume-showcase
+
+# View logs
+kubectl logs -f deployment/session-provisioner -n resume-showcase
+kubectl logs -f deployment/websocket-server -n resume-showcase
+
+# Uninstall
+helm uninstall resume-showcase -n resume-showcase
+```
+
+See [K3S_DEPLOYMENT.md](./K3S_DEPLOYMENT.md) for complete deployment guide.
+
+#### AWS EKS Deployment (Legacy)
 
 ```bash
 # Initialize Terraform
 cd terraform && terraform init
 
-# Plan infrastructure changes
-terraform plan
-
-# Apply infrastructure changes
+# Apply infrastructure
 terraform apply
-
-# Destroy infrastructure
-terraform destroy
 
 # Deploy to EKS
 kubectl apply -f k8s/
 
 # Check pod status
 kubectl get pods -n christianmoore
-
-# View logs
-kubectl logs -f <pod-name> -n christianmoore
 ```
 
 ## Code Style Guidelines
@@ -181,10 +208,17 @@ kubectl logs -f <pod-name> -n christianmoore
 
 ### Infrastructure as Code
 
-- Terraform modules for EKS cluster, VPC, ALB, and supporting resources
-- Kubernetes manifests for dynamic pod provisioning and auto-scaling
-- Follow AWS best practices for security and cost optimization
-- Implement pod-per-session orchestration controller or use admission webhooks
+**k3s Deployment (Current)**:
+- Helm 3 charts in `helm/resume-showcase/` for streamlined deployment
+- Values-based configuration for different environments
+- Traefik ingress with optional cert-manager integration
+- RBAC templates for session provisioner
+- Support for Docker Hub, local registry, or custom registries
+
+**AWS EKS Deployment (Legacy)**:
+- Terraform modules in `terraform/` for EKS cluster, VPC, ALB
+- Raw Kubernetes manifests in `k8s/` directory
+- AWS-specific resources (ECR, ALB, OIDC)
 
 ## Key Technical Components
 

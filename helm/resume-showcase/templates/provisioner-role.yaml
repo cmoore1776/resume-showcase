@@ -1,0 +1,19 @@
+{{- if .Values.rbac.create -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "resume-showcase.serviceAccountName" . }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "resume-showcase.provisioner.labels" . | nindent 4 }}
+rules:
+- apiGroups: ["batch"]
+  resources: ["jobs"]
+  verbs: ["create", "get", "list", "watch", "delete"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["pods/log"]
+  verbs: ["get"]
+{{- end }}

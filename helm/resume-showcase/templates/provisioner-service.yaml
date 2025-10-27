@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.sessionProvisioner.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "resume-showcase.provisioner.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.sessionProvisioner.service.type }}
+  selector:
+    {{- include "resume-showcase.provisioner.selectorLabels" . | nindent 4 }}
+  ports:
+  - port: {{ .Values.sessionProvisioner.service.port }}
+    targetPort: {{ .Values.sessionProvisioner.service.targetPort }}
+    protocol: TCP
+    name: http

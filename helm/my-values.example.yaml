@@ -1,0 +1,185 @@
+# Example Helm values for resume-showcase k3s deployment
+# Copy this file to my-values.yaml and customize for your environment
+
+# Namespace for all resources
+namespace: resume-showcase
+
+# Container image registry
+# Options: docker.io (Docker Hub), localhost:5000 (local registry), or custom registry
+imageRegistry: docker.io
+
+# Optional: Image pull secrets for private registries
+# imagePullSecrets:
+#   - name: regcred
+
+# WebSocket Server Configuration
+websocketServer:
+  name: websocket-server
+  replicaCount: 1
+
+  image:
+    # Change to your Docker Hub username or registry path
+    repository: your-username/resume-showcase-websocket
+    tag: latest
+    pullPolicy: Always  # Use IfNotPresent for production with versioned tags
+
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 8080
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m      # Adjust based on expected load
+      memory: 512Mi
+
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 8080
+    initialDelaySeconds: 5
+    periodSeconds: 10
+
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: 8080
+    initialDelaySeconds: 3
+    periodSeconds: 5
+
+# Session Provisioner Configuration
+sessionProvisioner:
+  name: session-provisioner
+  replicaCount: 2  # Run multiple replicas for high availability
+
+  image:
+    # Change to your Docker Hub username or registry path
+    repository: your-username/resume-showcase-provisioner
+    tag: latest
+    pullPolicy: Always
+
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 8081
+
+  # Number of warm pods to maintain in the pool
+  # Increase for higher traffic, decrease to save resources
+  warmPoolSize: 4
+
+  # WebSocket server image to use for spawned pods
+  # This should match websocketServer.image above
+  websocketImage:
+    repository: your-username/resume-showcase-websocket
+    tag: latest
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 8081
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: 8081
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+# Ingress Configuration (Traefik for k3s)
+ingress:
+  enabled: true
+  className: traefik
+
+  annotations:
+    # Enable compression for better performance
+    traefik.ingress.kubernetes.io/router.middlewares: default-compress@kubernetescrd
+    # Optional: Add rate limiting
+    # traefik.ingress.kubernetes.io/router.middlewares: default-compress@kubernetescrd,default-ratelimit@kubernetescrd
+
+  # Your domain name - CHANGE THIS!
+  host: backend.resume-showcase.example.com
+
+  # TLS Configuration
+  tls:
+    enabled: true
+    secretName: resume-showcase-tls
+
+    # Optional: cert-manager integration for automatic TLS
+    # Requires cert-manager to be installed in your cluster
+    # certManager:
+    #   enabled: true
+    #   issuer: letsencrypt-prod
+    #   issuerKind: ClusterIssuer
+
+  # Path routing configuration (usually no need to change)
+  paths:
+    session:
+      path: /session
+      pathType: Prefix
+      service: session-provisioner
+    websocket:
+      path: /
+      pathType: Prefix
+      service: websocket-server
+
+# RBAC Configuration
+rbac:
+  create: true
+  serviceAccountName: session-provisioner
+
+# Security Context
+podSecurityContext:
+  runAsNonRoot: false
+  # runAsUser: 1000
+  # fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+
+# Node Selector (optional)
+# Use to schedule pods on specific nodes
+nodeSelector: {}
+#   kubernetes.io/hostname: my-node-name
+
+# Tolerations (optional)
+# Use to allow pods on tainted nodes
+tolerations: []
+#   - key: "node-role.kubernetes.io/control-plane"
+#     operator: "Exists"
+#     effect: "NoSchedule"
+
+# Affinity Rules (optional)
+# Use for advanced pod scheduling
+affinity: {}
+#   podAntiAffinity:
+#     preferredDuringSchedulingIgnoredDuringExecution:
+#     - weight: 100
+#       podAffinityTerm:
+#         labelSelector:
+#           matchExpressions:
+#           - key: app
+#             operator: In
+#             values:
+#             - session-provisioner
+#         topologyKey: kubernetes.io/hostname

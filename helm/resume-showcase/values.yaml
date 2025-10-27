@@ -1,0 +1,162 @@
+# Default values for resume-showcase
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Global settings
+namespace: resume-showcase
+
+# Image registry configuration
+# k3s local container registry
+imageRegistry: registry.psyk3s.local:5000
+imagePullSecrets: []
+  # - name: regcred
+
+# WebSocket Server configuration
+websocketServer:
+  name: websocket-server
+  replicaCount: 1
+
+  image:
+    repository: resume-showcase-websocket
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  service:
+    type: LoadBalancer
+    port: 80
+    targetPort: 8080
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 8080
+    initialDelaySeconds: 5
+    periodSeconds: 10
+
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: 8080
+    initialDelaySeconds: 3
+    periodSeconds: 5
+
+# Session Provisioner configuration
+sessionProvisioner:
+  name: session-provisioner
+  replicaCount: 2
+
+  image:
+    repository: resume-showcase-provisioner
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  service:
+    type: LoadBalancer
+    port: 80
+    targetPort: 8081
+
+  # Configuration for warm pod pool
+  warmPoolSize: 4
+
+  # WebSocket server image to use for spawned pods
+  # This should match websocketServer.image above
+  websocketImage:
+    repository: resume-showcase-websocket
+    tag: latest
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 8081
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: 8081
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+# Ingress configuration for k3s Traefik
+ingress:
+  enabled: true
+  className: traefik
+  annotations:
+    # Enable WebSocket support
+    traefik.ingress.kubernetes.io/router.middlewares: default-compress@kubernetescrd
+
+  # Your domain name
+  host: backend.resume-showcase.example.com
+
+  # TLS configuration
+  tls:
+    enabled: true
+    secretName: resume-showcase-tls
+    # For cert-manager integration (optional)
+    # certManager:
+    #   enabled: true
+    #   issuer: letsencrypt-prod
+    #   issuerKind: ClusterIssuer
+
+  # Path routing
+  paths:
+    # Session provisioner API
+    session:
+      path: /session
+      pathType: Prefix
+      service: session-provisioner
+    # WebSocket connections
+    websocket:
+      path: /
+      pathType: Prefix
+      service: websocket-server
+
+# RBAC for session provisioner
+rbac:
+  create: true
+  # Service account name for session provisioner
+  serviceAccountName: session-provisioner
+
+# Pod security context
+podSecurityContext:
+  runAsNonRoot: false
+  # runAsUser: 1000
+  # fsGroup: 1000
+
+# Container security context
+securityContext:
+  allowPrivilegeEscalation: false
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+
+# Node selector for pod placement
+nodeSelector: {}
+
+# Tolerations for pod scheduling
+tolerations: []
+
+# Affinity rules
+affinity: {}
