@@ -4,16 +4,21 @@ WebSocket server for latency monitoring.
 Each pod instance handles ping/pong messages from a single client.
 """
 
-import asyncio
-import json
-import os
-import random
-import signal
 import sys
-from collections import defaultdict
-from datetime import datetime, timedelta
-from websockets.server import serve
-import websockets
+import os
+
+# Force unbuffered output for proper logging in Kubernetes
+sys.stdout = os.fdopen(sys.stdout.fileno(), "w", buffering=1)
+sys.stderr = os.fdopen(sys.stderr.fileno(), "w", buffering=1)
+
+import asyncio  # noqa: E402
+import json  # noqa: E402
+import random  # noqa: E402
+import signal  # noqa: E402
+from collections import defaultdict  # noqa: E402
+from datetime import datetime, timedelta  # noqa: E402
+from websockets.server import serve  # noqa: E402
+import websockets  # noqa: E402
 
 # Lists for generating friendly pod names
 ADJECTIVES = [
@@ -288,8 +293,9 @@ class WebSocketServer:
             self.port,
             process_request=self.health_check_handler,
             max_size=self.MAX_MESSAGE_SIZE,  # Enforce max message size at protocol level
-            ping_interval=None,  # Disable server-initiated pings (client controls timing)
-            ping_timeout=None,
+            ping_interval=5,  # Send WebSocket protocol ping every 5s to keep NAT/firewall alive
+            ping_timeout=20,  # Wait 20s for pong before closing
+            close_timeout=10,
         ):
             print(f"[{datetime.now().isoformat()}] WebSocket server running")
             await self.shutdown_event.wait()

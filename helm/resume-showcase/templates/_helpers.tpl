@@ -60,7 +60,6 @@ app: {{ .Values.websocketServer.name }}
 WebSocket server selector labels
 */}}
 {{- define "resume-showcase.websocket.selectorLabels" -}}
-{{ include "resume-showcase.selectorLabels" . }}
 app: {{ .Values.websocketServer.name }}
 {{- end }}
 

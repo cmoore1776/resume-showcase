@@ -32,7 +32,7 @@ type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecti
 // Use environment variable for API URLs, fallback to localhost for development
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8081'
 const WS_BASE_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8080'
-const PING_INTERVAL = 1000 // Send ping every second
+const PING_INTERVAL = 3000 // Send ping every 3 seconds
 
 function App() {
   /** @type {[ConnectionState, Function]} */

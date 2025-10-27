@@ -4,14 +4,20 @@ Session provisioning service that creates dedicated Kubernetes pods for each Web
 This service listens on HTTP and creates a Kubernetes Job for each new session request.
 """
 
-import asyncio
+import sys
 import os
-import uuid
-from datetime import datetime
-from aiohttp import web
-from aiohttp_cors import setup as cors_setup, ResourceOptions
-from kubernetes import client, config
-from kubernetes.client.rest import ApiException
+
+# Force unbuffered output for proper logging in Kubernetes
+sys.stdout = os.fdopen(sys.stdout.fileno(), "w", buffering=1)
+sys.stderr = os.fdopen(sys.stderr.fileno(), "w", buffering=1)
+
+import asyncio  # noqa: E402
+import uuid  # noqa: E402
+from datetime import datetime  # noqa: E402
+from aiohttp import web  # noqa: E402
+from aiohttp_cors import setup as cors_setup, ResourceOptions  # noqa: E402
+from kubernetes import client, config  # noqa: E402
+from kubernetes.client.rest import ApiException  # noqa: E402
 
 
 class SessionProvisioner:
@@ -60,6 +66,12 @@ class SessionProvisioner:
 
     async def initialize_pod_pool(self):
         """Initialize the pool of warm pods ready for sessions."""
+        if self.pool_size == 0:
+            print(
+                f"[{datetime.now().isoformat()}] Pod pool disabled (size=0), skipping initialization"
+            )
+            return
+
         print(
             f"[{datetime.now().isoformat()}] Initializing pod pool with {self.pool_size} pods..."
         )
@@ -133,6 +145,11 @@ class SessionProvisioner:
         """Background task to maintain the pool of warm pods."""
         while True:
             try:
+                # Skip if pool is disabled
+                if self.pool_size == 0:
+                    await asyncio.sleep(30)
+                    continue
+
                 # Check pool size and replenish if needed
                 if len(self.available_pods) < self.pool_size:
                     print(
@@ -171,7 +188,12 @@ class SessionProvisioner:
                 "backoffLimit": 0,  # Don't retry on failure
                 "template": {
                     "metadata": {
-                        "labels": {"app": "websocket-server", "session-id": session_id}
+                        "labels": {
+                            "app": "websocket-server",
+                            "session-id": session_id,
+                            "app.kubernetes.io/instance": "resume-showcase",
+                            "app.kubernetes.io/name": "resume-showcase",
+                        }
                     },
                     "spec": {
                         "restartPolicy": "Never",
@@ -179,7 +201,7 @@ class SessionProvisioner:
                             {
                                 "name": "websocket-server",
                                 "image": self.ecr_image,
-                                "imagePullPolicy": "IfNotPresent",
+                                "imagePullPolicy": "Always",
                                 "ports": [{"containerPort": 8080, "name": "websocket"}],
                                 "env": [
                                     {
@@ -253,6 +275,20 @@ class SessionProvisioner:
         try:
             session_id = self._generate_session_id()
             print(f"[{datetime.now().isoformat()}] Creating session: {session_id}")
+
+            # If pool size is 0, return direct WebSocket connection
+            if self.pool_size == 0:
+                print(
+                    f"[{datetime.now().isoformat()}] Pool disabled, using direct WebSocket connection"
+                )
+                response = {
+                    "session_id": session_id,
+                    "status": "ready",
+                    "pod_name": "load-balanced",
+                    "websocket_url": "wss://resume-showcase.k3s.christianmoore.me/ws",
+                    "node_name": None,
+                }
+                return web.json_response(response)
 
             # Try to get a warm pod from the pool
             pod_details = None
@@ -376,7 +412,7 @@ class SessionProvisioner:
 
 
 async def main():
-    provisioner = SessionProvisioner(pool_size=4)
+    provisioner = SessionProvisioner()  # Use POOL_SIZE env var (default: 4)
 
     # Initialize the pod pool
     await provisioner.initialize_pod_pool()

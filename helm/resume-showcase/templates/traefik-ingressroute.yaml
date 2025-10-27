@@ -1,0 +1,80 @@
+{{- if and .Values.ingress.enabled (eq .Values.ingress.className "traefik") -}}
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: redirect-https
+  namespace: {{ .Values.namespace }}
+spec:
+  redirectScheme:
+    scheme: https
+    permanent: true
+
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: websocket-headers
+  namespace: {{ .Values.namespace }}
+spec:
+  headers:
+    customRequestHeaders:
+      X-Forwarded-Proto: "https"
+
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: {{ include "resume-showcase.fullname" . }}-http-redirect
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "resume-showcase.labels" . | nindent 4 }}
+spec:
+  entryPoints:
+    - web
+  routes:
+    - kind: Rule
+      match: Host(`{{ .Values.ingress.host }}`)
+      middlewares:
+        - name: redirect-https
+      services:
+        - name: {{ .Values.websocketServer.name }}
+          port: {{ .Values.websocketServer.service.port }}
+
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: {{ include "resume-showcase.fullname" . }}-https
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "resume-showcase.labels" . | nindent 4 }}
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    # Session provisioner API - more specific path
+    - kind: Rule
+      match: Host(`{{ .Values.ingress.host }}`) && PathPrefix(`{{ .Values.ingress.paths.session.path }}`)
+      priority: 20
+      services:
+        - name: {{ .Values.sessionProvisioner.name }}
+          port: {{ .Values.sessionProvisioner.service.port }}
+    # WebSocket connections with sticky sessions
+    - kind: Rule
+      match: Host(`{{ .Values.ingress.host }}`) && PathPrefix(`{{ .Values.ingress.paths.websocket.path }}`)
+      priority: 10
+      services:
+        - name: {{ .Values.websocketServer.name }}
+          port: {{ .Values.websocketServer.service.port }}
+          sticky:
+            cookie:
+              name: session_affinity
+              secure: true
+              httpOnly: true
+              sameSite: none
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+    secretName: {{ .Values.ingress.tls.secretName }}
+  {{- end }}
+{{- end }}
