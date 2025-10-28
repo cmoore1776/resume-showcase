@@ -293,9 +293,10 @@ class WebSocketServer:
             self.port,
             process_request=self.health_check_handler,
             max_size=self.MAX_MESSAGE_SIZE,  # Enforce max message size at protocol level
-            ping_interval=5,  # Send WebSocket protocol ping every 5s to keep NAT/firewall alive
-            ping_timeout=20,  # Wait 20s for pong before closing
+            ping_interval=None,  # Disable protocol pings - strict SPI firewalls may block them
+            ping_timeout=None,  # Disable protocol ping timeout
             close_timeout=10,
+            compression=None,  # Disable compression - some firewalls drop compressed WebSocket frames
         ):
             print(f"[{datetime.now().isoformat()}] WebSocket server running")
             await self.shutdown_event.wait()

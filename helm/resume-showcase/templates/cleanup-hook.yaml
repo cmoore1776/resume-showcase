@@ -1,0 +1,127 @@
+{{- if .Values.cleanup.enabled -}}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "resume-showcase.fullname" . }}-cleanup
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "resume-showcase.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-upgrade,pre-rollback
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "resume-showcase.fullname" . }}-cleanup
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "resume-showcase.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-upgrade,pre-rollback
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+rules:
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["list", "delete", "deletecollection"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["list", "delete", "deletecollection"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "resume-showcase.fullname" . }}-cleanup
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "resume-showcase.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-upgrade,pre-rollback
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "resume-showcase.fullname" . }}-cleanup
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "resume-showcase.fullname" . }}-cleanup
+    namespace: {{ .Values.namespace }}
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "resume-showcase.fullname" . }}-cleanup-{{ now | unixEpoch }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "resume-showcase.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-upgrade,pre-rollback
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  ttlSecondsAfterFinished: 60
+  backoffLimit: 2
+  template:
+    metadata:
+      name: {{ include "resume-showcase.fullname" . }}-cleanup
+      labels:
+        {{- include "resume-showcase.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "resume-showcase.fullname" . }}-cleanup
+      restartPolicy: Never
+      containers:
+      - name: cleanup
+        image: {{ .Values.cleanup.image.repository }}:{{ .Values.cleanup.image.tag }}
+        imagePullPolicy: {{ .Values.cleanup.image.pullPolicy }}
+        command:
+        - /bin/sh
+        - -c
+        - |
+          set -e
+          echo "=== Pre-upgrade cleanup starting ==="
+          echo "Namespace: {{ .Values.namespace }}"
+          echo ""
+
+          # Delete all jobs created by session provisioner
+          echo "Deleting session provisioner jobs..."
+          kubectl delete jobs -n {{ .Values.namespace }} \
+            -l managed-by=session-provisioner \
+            --ignore-not-found=true || true
+
+          # Delete any websocket-session pods (from jobs)
+          echo "Deleting websocket-session pods..."
+          kubectl delete pods -n {{ .Values.namespace }} \
+            -l app=websocket-server,session-id \
+            --ignore-not-found=true || true
+
+          # Delete any warm pool pods
+          echo "Deleting warm pool pods..."
+          kubectl delete pods -n {{ .Values.namespace }} \
+            -l pool=warm \
+            --ignore-not-found=true || true
+
+          echo ""
+          echo "Waiting for pods to terminate (max 30s)..."
+          kubectl wait --for=delete pod \
+            -n {{ .Values.namespace }} \
+            -l app=websocket-server,session-id \
+            --timeout=30s 2>/dev/null || true
+
+          echo ""
+          echo "=== Pre-upgrade cleanup complete ==="
+          echo "Old session pods cleaned up successfully"
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+{{- end }}

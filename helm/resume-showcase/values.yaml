@@ -64,7 +64,7 @@ sessionProvisioner:
     targetPort: 8081
 
   # Configuration for warm pod pool
-  warmPoolSize: 0  # Disabled for resource-constrained environments
+  warmPoolSize: 2  # Number of pre-provisioned pods ready for instant assignment
 
   # WebSocket server image to use for spawned pods
   # This should match websocketServer.image above
@@ -136,6 +136,15 @@ rbac:
   create: true
   # Service account name for session provisioner
   serviceAccountName: session-provisioner
+
+# Pre-upgrade cleanup hook
+# Automatically deletes old session pods/jobs before upgrades
+cleanup:
+  enabled: true
+  image:
+    repository: bitnami/kubectl
+    tag: latest
+    pullPolicy: IfNotPresent
 
 # Pod security context
 podSecurityContext:
