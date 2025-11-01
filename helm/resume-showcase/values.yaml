@@ -7,7 +7,7 @@ namespace: resume-showcase
 
 # Image registry configuration
 # k3s local container registry
-imageRegistry: registry.psyk3s.local:5000
+imageRegistry: registry.k3s.local.christianmoore.me:8443
 imagePullSecrets: []
   # - name: regcred
 

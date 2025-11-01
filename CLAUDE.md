@@ -36,10 +36,10 @@ pnpm lint             # Linter
 ### Backend
 ```bash
 # Build images for local k3s registry
-docker build -t registry.psyk3s.local:5000/resume-showcase-websocket:latest ./backend
-docker build -f backend/Dockerfile.provisioner -t registry.psyk3s.local:5000/resume-showcase-provisioner:latest ./backend
-docker push registry.psyk3s.local:5000/resume-showcase-websocket:latest
-docker push registry.psyk3s.local:5000/resume-showcase-provisioner:latest
+docker build -t registry.k3s.local.christianmoore.me:8443/resume-showcase-websocket:latest ./backend
+docker build -f backend/Dockerfile.provisioner -t registry.k3s.local.christianmoore.me:8443/resume-showcase-provisioner:latest ./backend
+docker push registry.k3s.local.christianmoore.me:8443/resume-showcase-websocket:latest
+docker push registry.k3s.local.christianmoore.me:8443/resume-showcase-provisioner:latest
 
 # Python code quality (run before completing backend work)
 ruff check backend/
@@ -112,8 +112,8 @@ kubectl get application resume-showcase -n argocd
 - RBAC for session provisioner
 
 **Deployment Types**:
-- **k3s** (current): Helm charts, Traefik ingress, local/Docker Hub registry
-- **ArgoCD** (GitOps): Automated sync from Git repo
+- **Helm** (manual): Direct Helm deployment to k3s cluster (see above)
+- **ArgoCD** (GitOps): Automated sync from Git repo, self-healing (see ARGOCD_DEPLOYMENT.md)
 - **AWS EKS** (legacy): Terraform + raw manifests in `terraform/` and `k8s/`
 
 ## Key Technical Components

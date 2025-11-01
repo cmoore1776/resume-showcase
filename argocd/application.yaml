@@ -1,0 +1,100 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: resume-showcase
+  namespace: argocd
+  # Finalizer ensures proper cleanup on deletion
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  # Labels for organization
+  labels:
+    app.kubernetes.io/name: resume-showcase
+    app.kubernetes.io/component: application
+spec:
+  # Reference to the AppProject
+  project: resume-showcase
+
+  # Source repository configuration
+  source:
+    # Git repository URL
+    repoURL: https://github.com/cmoore1776/resume-showcase.git
+    # Branch to track (change to 'main' or specific tag/commit as needed)
+    targetRevision: main
+    # Path to Helm chart within repository
+    path: helm/resume-showcase
+
+    # Helm-specific configuration
+    helm:
+      # Release name
+      releaseName: resume-showcase
+
+      # Values files to use (in order of precedence)
+      valueFiles:
+        - values.yaml
+
+      # Optional: Override specific values
+      # Uncomment and modify as needed
+      # values: |
+      #   websocketServer:
+      #     replicaCount: 3
+      #   sessionProvisioner:
+      #     warmPoolSize: 2
+
+  # Destination cluster and namespace
+  destination:
+    # In-cluster deployment
+    server: https://kubernetes.default.svc
+    # Target namespace (will be created if it doesn't exist)
+    namespace: resume-showcase
+
+  # Sync policy configuration
+  syncPolicy:
+    # Automated sync configuration
+    automated:
+      # Automatically sync when changes detected in Git
+      prune: true
+      # Automatically sync when cluster state differs from Git
+      selfHeal: true
+      # Allow empty directories to trigger sync
+      allowEmpty: false
+
+    # Sync options
+    syncOptions:
+      # Create namespace if it doesn't exist
+      - CreateNamespace=true
+      # Validate resources before applying
+      - Validate=true
+      # Use server-side apply for better conflict resolution
+      - ServerSideApply=true
+      # Respect ignore differences configuration
+      - RespectIgnoreDifferences=true
+
+    # Retry configuration for failed syncs
+    retry:
+      # Maximum number of retry attempts
+      limit: 5
+      backoff:
+        # Initial retry delay
+        duration: 5s
+        # Maximum retry delay
+        maxDuration: 3m
+        # Exponential backoff factor
+        factor: 2
+
+  # Health assessment configuration
+  # ArgoCD will consider the application healthy when all resources are healthy
+  ignoreDifferences:
+    # Ignore differences in auto-generated fields
+    - group: apps
+      kind: StatefulSet
+      jsonPointers:
+        - /spec/volumeClaimTemplates
+    # Ignore Job status changes (session pods are ephemeral)
+    - group: batch
+      kind: Job
+      jsonPointers:
+        - /status
+
+  # Resource tracking method
+  # Uses annotations for better GitOps workflow
+  revisionHistoryLimit: 10

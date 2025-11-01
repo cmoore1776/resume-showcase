@@ -1,0 +1,69 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: resume-showcase
+  namespace: argocd
+  # Finalizer ensures project is not deleted while applications exist
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Interactive technical demonstration showcasing cloud-native infrastructure
+
+  # Source repositories allowed for this project
+  sourceRepos:
+    - https://github.com/cmoore1776/resume-showcase.git
+
+  # Destinations allowed for deployments
+  destinations:
+    - namespace: resume-showcase
+      server: https://kubernetes.default.svc
+    # Allow creating namespace if needed
+    - namespace: '*'
+      server: https://kubernetes.default.svc
+
+  # Cluster resources allowed to be created
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+
+  # Namespaced resources allowed
+  namespaceResourceWhitelist:
+    - group: ''
+      kind: Service
+    - group: ''
+      kind: ServiceAccount
+    - group: ''
+      kind: ConfigMap
+    - group: ''
+      kind: Secret
+    - group: apps
+      kind: StatefulSet
+    - group: apps
+      kind: Deployment
+    - group: batch
+      kind: Job
+    - group: networking.k8s.io
+      kind: Ingress
+    - group: rbac.authorization.k8s.io
+      kind: Role
+    - group: rbac.authorization.k8s.io
+      kind: RoleBinding
+    - group: policy
+      kind: PodDisruptionBudget
+
+  # Deny certain resources (none for now)
+  namespaceResourceBlacklist: []
+
+  # Enable namespace orphan resource monitoring
+  orphanedResources:
+    warn: true
+
+  # Allow project-scoped repositories and clusters
+  roles:
+    # Role for CI/CD to sync applications
+    - name: ci-role
+      description: Role for CI/CD pipelines
+      policies:
+        - p, proj:resume-showcase:ci-role, applications, sync, resume-showcase/*, allow
+        - p, proj:resume-showcase:ci-role, applications, get, resume-showcase/*, allow
+      groups: []

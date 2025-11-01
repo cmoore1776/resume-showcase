@@ -33,12 +33,12 @@ The application is now deployed **manually** to an on-premise k3s cluster using 
 
 ```bash
 # Build images
-docker build -t registry.psyk3s.local:5000/resume-showcase-websocket:latest ./backend
-docker build -f ./backend/Dockerfile.provisioner -t registry.psyk3s.local:5000/resume-showcase-provisioner:latest ./backend
+docker build -t registry.k3s.local.christianmoore.me:8443/resume-showcase-websocket:latest ./backend
+docker build -f ./backend/Dockerfile.provisioner -t registry.k3s.local.christianmoore.me:8443/resume-showcase-provisioner:latest ./backend
 
 # Push to local k3s registry
-docker push registry.psyk3s.local:5000/resume-showcase-websocket:latest
-docker push registry.psyk3s.local:5000/resume-showcase-provisioner:latest
+docker push registry.k3s.local.christianmoore.me:8443/resume-showcase-websocket:latest
+docker push registry.k3s.local.christianmoore.me:8443/resume-showcase-provisioner:latest
 
 # Deploy with Helm
 helm upgrade --install resume-showcase ./helm/resume-showcase \
