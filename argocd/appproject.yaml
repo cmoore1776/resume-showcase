@@ -62,6 +62,12 @@ spec:
   # Enable namespace orphan resource monitoring
   orphanedResources:
     warn: true
+    # Ignore specific orphaned resource types
+    ignore:
+      # Ignore orphaned Jobs (created dynamically by session provisioner)
+      - group: batch
+        kind: Job
+        name: 'websocket-session-*'
 
   # Allow project-scoped repositories and clusters
   roles:
