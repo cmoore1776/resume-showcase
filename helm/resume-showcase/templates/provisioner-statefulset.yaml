@@ -1,15 +1,19 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: {{ .Values.sessionProvisioner.name }}
   namespace: {{ .Values.namespace }}
   labels:
     {{- include "resume-showcase.provisioner.labels" . | nindent 4 }}
 spec:
+  serviceName: {{ .Values.sessionProvisioner.name }}
   replicas: {{ .Values.sessionProvisioner.replicaCount }}
   selector:
     matchLabels:
       {{- include "resume-showcase.provisioner.selectorLabels" . | nindent 6 }}
+  podManagementPolicy: OrderedReady
+  updateStrategy:
+    type: RollingUpdate
   template:
     metadata:
       labels:

@@ -224,8 +224,8 @@ class SessionProvisioner:
                                     "periodSeconds": 3,
                                 },
                                 "resources": {
-                                    "requests": {"cpu": "50m", "memory": "64Mi"},
-                                    "limits": {"cpu": "100m", "memory": "128Mi"},
+                                    "requests": {"cpu": "10m", "memory": "30Mi"},
+                                    "limits": {"cpu": "100m", "memory": "256Mi"},
                                 },
                             }
                         ],

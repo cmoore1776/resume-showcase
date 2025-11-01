@@ -6,7 +6,9 @@ metadata:
   labels:
     {{- include "resume-showcase.websocket.labels" . | nindent 4 }}
 spec:
-  type: {{ .Values.websocketServer.service.type }}
+  type: ClusterIP
+  clusterIP: None  # Headless service for StatefulSet
+  publishNotReadyAddresses: true
   selector:
     {{- include "resume-showcase.websocket.selectorLabels" . | nindent 4 }}
   ports:

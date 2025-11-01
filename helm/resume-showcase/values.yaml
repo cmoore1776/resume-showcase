@@ -11,10 +11,10 @@ imageRegistry: registry.psyk3s.local:5000
 imagePullSecrets: []
   # - name: regcred
 
-# WebSocket Server configuration
+# WebSocket Server configuration (StatefulSet)
 websocketServer:
   name: websocket-server
-  replicaCount: 3  # Multiple replicas for load balancing
+  replicaCount: 3  # Creates pods: websocket-server-0, websocket-server-1, websocket-server-2
 
   image:
     repository: resume-showcase-websocket
@@ -22,17 +22,18 @@ websocketServer:
     pullPolicy: Always
 
   service:
-    type: LoadBalancer
-    port: 80
+    # Headless service (clusterIP: None) for StatefulSet
+    # Provides stable DNS names: websocket-server-{0..N}.websocket-server.resume-showcase.svc.cluster.local
+    port: 8080
     targetPort: 8080
 
   resources:
     requests:
-      cpu: 100m
-      memory: 128Mi
+      cpu: 10m       # 10x current usage (1m)
+      memory: 30Mi   # 2x current usage (15Mi)
     limits:
-      cpu: 200m
-      memory: 256Mi
+      cpu: 100m      # Minimum 100m for burst capacity
+      memory: 256Mi  # 4x current usage (60Mi), rounded up to nearest 256Mi
 
   livenessProbe:
     httpGet:
@@ -48,10 +49,10 @@ websocketServer:
     initialDelaySeconds: 3
     periodSeconds: 5
 
-# Session Provisioner configuration
+# Session Provisioner configuration (StatefulSet)
 sessionProvisioner:
   name: session-provisioner
-  replicaCount: 1  # Must be 1 to avoid duplicate pool management
+  replicaCount: 1  # Must be 1 to avoid duplicate pool management (creates session-provisioner-0)
 
   image:
     repository: resume-showcase-provisioner
@@ -59,8 +60,9 @@ sessionProvisioner:
     pullPolicy: Always
 
   service:
-    type: LoadBalancer
-    port: 80
+    # Headless service (clusterIP: None) for StatefulSet
+    # Provides stable DNS: session-provisioner-0.session-provisioner.resume-showcase.svc.cluster.local
+    port: 8081
     targetPort: 8081
 
   # Configuration for warm pod pool
@@ -74,11 +76,11 @@ sessionProvisioner:
 
   resources:
     requests:
-      cpu: 100m
-      memory: 128Mi
+      cpu: 10m       # 10x current usage (1m)
+      memory: 146Mi  # 2x current usage (73Mi)
     limits:
-      cpu: 200m
-      memory: 256Mi
+      cpu: 100m      # Minimum 100m for burst capacity
+      memory: 512Mi  # 4x current usage (292Mi), rounded up to nearest 256Mi
 
   livenessProbe:
     httpGet:

@@ -4,267 +4,163 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Interactive technical demonstration website showcasing cloud-native infrastructure expertise through a real-time latency monitoring application.
+Interactive technical demonstration showcasing cloud-native infrastructure through a real-time latency monitoring application.
 
-### Application Architecture
-
-**Frontend**: React-based web application (deployed to GitHub Pages) displaying a real-time latency graph showing WebSocket ping/pong latency to the backend.
+**Frontend**: React 19 + Vite web app (GitHub Pages) displaying WebSocket ping/pong latency graphs.
 
 **Backend**: Kubernetes cluster (k3s on-premise or AWS EKS) with warm pod pool and per-session pod provisioning:
+- **Session Provisioner StatefulSet**: HTTP service maintaining pool of 2 warm pods for instant assignment
+- **WebSocket Server StatefulSet**: 3 replicas for load-balanced connections
+- **Session Pods**: Dedicated Kubernetes Jobs created per browser session
+- **Auto-replenishment**: Background process maintains warm pool automatically
+- **Self-healing**: Users can terminate pods and watch automatic replacement
 
-- **Session Provisioner**: HTTP service maintaining a pool of 4 warm pods ready for instant assignment
-- Each browser session gets a dedicated Kubernetes pod (assigned from pool or created on-demand)
-- WebSocket server in each pod responds to client pings
-- Background process automatically replenishes the warm pod pool
-- Users can remotely terminate their pod and watch automatic pod replacement
-- Demonstrates pod lifecycle management, auto-healing, and resilience
-
-### Request Flow
-
-1. Frontend requests session from provisioner (`POST /session`)
-2. Provisioner assigns warm pod from pool (instant) or creates new pod on-demand
-3. Frontend establishes WebSocket connection to assigned pod
-4. Real-time latency monitoring via ping/pong messages
-5. Pod pool automatically replenishes in background
-
-This architecture showcases:
-
-- Warm pod pooling for instant session startup
-- Real-time WebSocket communication
-- Dynamic Kubernetes pod orchestration with Jobs
-- Self-healing infrastructure patterns
-- Interactive cloud-native concepts
+**Architecture**: Warm pod pooling + StatefulSets + dynamic Job orchestration demonstrates pod lifecycle management and cloud-native resilience patterns.
 
 ## Tech Stack
 
-### Frontend
-
-- **Framework**: React 19 + Vite 7 with JavaScript (JSDoc type annotations)
-- **Styling**: Tailwind CSS 3.4 + ShadCN components
-- **Package Manager**: pnpm 9.0
-- **WebSocket Client**: Native WebSocket API
-- **Charting**: Recharts 3.2 for real-time latency graphs
-- **Analytics**: PostHog
-- **Hosting**: GitHub Pages
-
-### Backend
-
-- **Runtime**: Python 3.11
-- **WebSocket Server**: aiohttp 3.9 + websockets 12.0
-- **Session Provisioner**: aiohttp HTTP API + Kubernetes Python client 28.1
-- **Container Platform**: Docker (multi-stage builds, ARM64)
-- **Orchestration**: Kubernetes Jobs with warm pod pool (4 pre-provisioned pods)
-
-### Infrastructure
-
-- **Container Orchestration**: k3s (lightweight Kubernetes) or Amazon EKS
-- **Infrastructure as Code**: Helm 3 charts for k3s deployment
-- **Deployment Options**:
-  - **On-Premise k3s**: Helm-based deployment to on-premise k3s cluster (recommended)
-  - **AWS EKS** (legacy): Terraform + raw Kubernetes manifests (see `terraform/` directory)
-- **Networking**:
-  - k3s: Traefik ingress controller (built-in)
-  - EKS: Application Load Balancer, VPC, Security Groups
-- **CI/CD**: GitHub Actions
-- **Container Registry**: Docker Hub or local registry
-- **TLS**: cert-manager with Let's Encrypt or manual certificates
-- **Monitoring**: Prometheus + Grafana (optional)
+**Frontend**: React 19, Vite 7, JavaScript (JSDoc), Tailwind CSS 3.4, ShadCN, pnpm 9.0, Recharts 3.2
+**Backend**: Python 3.11, aiohttp 3.9, websockets 12.0, Kubernetes Python client 28.1
+**Infrastructure**: k3s/EKS, Helm 3, Traefik ingress, cert-manager, ArgoCD (GitOps), GitHub Actions
 
 ## Development Commands
 
-### Frontend Development
-
+### Frontend
 ```bash
-# Install dependencies
-pnpm install
-
-# Run development server
-pnpm dev
-
-# Build for production
-pnpm build
-
-# Preview production build
-pnpm preview
-
-# Run linter
-pnpm lint
-
-# Run tests
-pnpm test
+pnpm install          # Install dependencies
+pnpm dev              # Development server
+pnpm build            # Production build (ALWAYS run before completing frontend work)
+pnpm lint             # Linter
 ```
 
-### Backend Development
-
+### Backend
 ```bash
-# Build WebSocket server Docker image
-docker build -t your-username/resume-showcase-websocket:latest ./backend
+# Build images for local k3s registry
+docker build -t registry.psyk3s.local:5000/resume-showcase-websocket:latest ./backend
+docker build -f backend/Dockerfile.provisioner -t registry.psyk3s.local:5000/resume-showcase-provisioner:latest ./backend
+docker push registry.psyk3s.local:5000/resume-showcase-websocket:latest
+docker push registry.psyk3s.local:5000/resume-showcase-provisioner:latest
 
-# Build session provisioner Docker image
-docker build -f ./backend/Dockerfile.provisioner -t your-username/resume-showcase-provisioner:latest ./backend
-
-# Run WebSocket server locally
-docker run -p 8080:8080 your-username/resume-showcase-websocket:latest
-
-# Run session provisioner locally (requires kubectl access to cluster)
-docker run -p 8081:8081 your-username/resume-showcase-provisioner:latest
-
-# Push to Docker Hub
-docker login
-docker push your-username/resume-showcase-websocket:latest
-docker push your-username/resume-showcase-provisioner:latest
-
-# Push to local registry (for on-premise deployments)
-docker tag your-username/resume-showcase-websocket:latest localhost:5000/resume-showcase-websocket:latest
-docker push localhost:5000/resume-showcase-websocket:latest
+# Python code quality (run before completing backend work)
+ruff check backend/
+ruff format backend/
 ```
 
-### Infrastructure Management
+### Infrastructure
 
-#### k3s Deployment (Recommended)
-
+**Helm Deployment**:
 ```bash
-# Install Helm chart
-helm install resume-showcase ./helm/resume-showcase \
-  --values helm/my-values.yaml \
-  --create-namespace
+# Deploy/upgrade
+helm upgrade --install resume-showcase ./helm/resume-showcase --namespace resume-showcase
 
-# Upgrade existing deployment
-helm upgrade --install resume-showcase ./helm/resume-showcase \
-  --values helm/my-values.yaml
-
-# Check deployment status
+# Check status
 kubectl get all -n resume-showcase
-
-# View logs
-kubectl logs -f deployment/session-provisioner -n resume-showcase
-kubectl logs -f deployment/websocket-server -n resume-showcase
-
-# Uninstall
-helm uninstall resume-showcase -n resume-showcase
+kubectl get statefulsets -n resume-showcase
+kubectl logs -f statefulset/session-provisioner -n resume-showcase
+kubectl logs -f statefulset/websocket-server -n resume-showcase
 ```
 
-See [K3S_DEPLOYMENT.md](./K3S_DEPLOYMENT.md) for complete deployment guide.
-
-#### AWS EKS Deployment (Legacy)
-
+**ArgoCD GitOps** (see ARGOCD_DEPLOYMENT.md):
 ```bash
-# Initialize Terraform
-cd terraform && terraform init
+# One-time setup
+kubectl apply -f argocd/appproject.yaml
+kubectl apply -f argocd/application.yaml
 
-# Apply infrastructure
-terraform apply
-
-# Deploy to EKS
-kubectl apply -f k8s/
-
-# Check pod status
-kubectl get pods -n christianmoore
+# Check sync status
+kubectl get application resume-showcase -n argocd
 ```
 
 ## Code Style Guidelines
 
-### JavaScript/JSDoc Typing
-
-- Use JSDoc annotations for type safety instead of TypeScript
+### JavaScript/JSDoc
+- Use JSDoc annotations for type safety (no TypeScript)
+- Use `.jsx` extension for JSX syntax, `.js` for plain JavaScript
 - Document all function parameters and return types
-- Example:
 
-  ```javascript
-  /**
-   * @param {string} name - User's full name
-   * @param {number} age - User's age
-   * @returns {Object} User profile object
-   */
-  function createUserProfile(name, age) { ... }
-  ```
-
-### React Components
-
-- Prefer functional components with hooks
-- Use ShadCN for UI components where applicable
-- Style with Tailwind utility classes
+### React
+- Functional components with hooks
+- ShadCN components where applicable
+- Tailwind utility classes for styling
 
 ### Backend Services
 
 **WebSocket Server** (`server.py`):
-
-- Lightweight aiohttp server responding to ping/pong messages
-- Health check endpoint for Kubernetes liveness/readiness probes (`/health`)
+- Lightweight aiohttp server, port 8080
+- Health check endpoint `/health` for Kubernetes probes
 - Graceful shutdown handling
-- Runs on port 8080
 
 **Session Provisioner** (`session_provisioner.py`):
+- HTTP API managing warm pod pool (2 pods)
+- Creates Kubernetes Jobs for WebSocket sessions
+- Endpoints: `POST /session`, `GET /health`
+- Port 8081, requires RBAC for Jobs/Pods
+- Resource limits hardcoded in `_create_job_manifest()`:
+  - CPU: 10m request, 100m limit
+  - Memory: 30Mi request, 256Mi limit
 
-- HTTP API service that manages warm pod pool
-- Maintains 4 pre-provisioned pods ready for instant assignment
-- Creates Kubernetes Jobs for WebSocket server pods
-- Background task to replenish pool automatically
-- Endpoints:
-  - `POST /session` - Create/assign session pod
-  - `GET /health` - Health check
-- Runs on port 8081
-- Requires RBAC permissions to create/manage Jobs and Pods
+### Infrastructure
 
-### Infrastructure as Code
+**Helm Chart** (`helm/resume-showcase/`):
+- StatefulSets for session-provisioner (1 replica) and websocket-server (3 replicas)
+- Headless services (clusterIP: None) for StatefulSet stable DNS
+- Values in `values.yaml`:
+  - `warmPoolSize: 2` - warm pod pool size
+  - Resource requests/limits optimized for ~1m CPU, 15-73Mi memory usage
+  - WebSocket: 10m/100m CPU, 30Mi/256Mi memory
+  - Provisioner: 10m/100m CPU, 146Mi/512Mi memory
+- Traefik ingress with cert-manager TLS
+- RBAC for session provisioner
 
-**k3s Deployment (Current)**:
-- Helm 3 charts in `helm/resume-showcase/` for streamlined deployment
-- Values-based configuration for different environments
-- Traefik ingress with optional cert-manager integration
-- RBAC templates for session provisioner
-- Support for Docker Hub, local registry, or custom registries
-
-**AWS EKS Deployment (Legacy)**:
-- Terraform modules in `terraform/` for EKS cluster, VPC, ALB
-- Raw Kubernetes manifests in `k8s/` directory
-- AWS-specific resources (ECR, ALB, OIDC)
+**Deployment Types**:
+- **k3s** (current): Helm charts, Traefik ingress, local/Docker Hub registry
+- **ArgoCD** (GitOps): Automated sync from Git repo
+- **AWS EKS** (legacy): Terraform + raw manifests in `terraform/` and `k8s/`
 
 ## Key Technical Components
 
-### Pod Lifecycle Management
+### StatefulSet Architecture
 
-The application demonstrates Kubernetes self-healing by allowing users to:
+Both main components use StatefulSets for:
+- **Ordered deployment/scaling**: Pods created sequentially (websocket-server-0, -1, -2)
+- **Stable network identities**: Predictable DNS names via headless services
+- **Persistent pod names**: Enables reliable service discovery
 
-1. Establish WebSocket connection to their dedicated pod
-2. View real-time latency metrics via ping/pong
-3. Trigger pod termination via UI button
-4. Observe automatic pod recreation and WebSocket reconnection
-5. See latency graph resume with new pod
+### Warm Pod Pool Strategy
 
-### Pod Provisioning Strategy
+Session provisioner implements HTTP API-based warm pool:
+1. **Initialization**: Creates 2 warm Job pods with `pool=warm, assigned=false` labels
+2. **Session Request**: Assigns warm pod from pool (instant <1s startup)
+3. **Label Update**: Marks assigned pod with `assigned=true` and `session-id`
+4. **Replenishment**: Background task maintains pool size
+5. **Fallback**: Creates on-demand pod if pool empty (~60s startup)
 
-**Implemented approach: Warm Pod Pool with HTTP API**
+Benefits: Pre-provisioned speed + dynamic flexibility + simple HTTP API (no webhooks/operators).
 
-The session provisioner service implements a warm pod pool pattern:
+### Resource Optimization
 
-1. **Initialization**: On startup, creates 4 warm Kubernetes Jobs (pods) labeled with `pool=warm, assigned=false`
-2. **Session Request**: When `POST /session` is called, provisioner assigns an available warm pod from pool
-3. **Instant Assignment**: Pod already running and ready, so session starts in <1 second
-4. **Label Update**: Assigned pod is relabeled with `assigned=true` and specific `session-id`
-5. **Background Replenishment**: Async task monitors pool and creates new warm pods to maintain pool size
-6. **Fallback**: If pool is empty, creates pod on-demand (takes ~60 seconds)
-
-This combines benefits of:
-
-- Pre-provisioned pods (fast startup like StatefulSet)
-- Dynamic creation (flexibility like serverless)
-- Simple HTTP API (no complex admission webhooks or custom controllers)
-
-### Monitoring & Observability
-
-- Track pod creation/deletion events
-- Monitor WebSocket connection metrics
-- Measure pod startup time and replacement speed
-- Dashboard showing active sessions and pod health
+All pods use optimized limits based on actual usage:
+- **Formula**: 10x current usage (request), 100m minimum (limit) for CPU; 2x usage (request), 4x rounded to 256Mi (limit) for memory
+- **StatefulSets**: 10m/100m CPU, 30-146Mi/256-512Mi memory
+- **Session Jobs**: 10m/100m CPU, 30Mi/256Mi memory
+- **Savings**: 90% reduction in CPU requests while maintaining burst capacity
 
 ## Quality Assurance
 
-**ALWAYS perform a test build before considering work complete:**
+**ALWAYS perform test builds before completing work:**
 
-- For frontend work: Run `pnpm build` to verify JSDoc type checking and Vite build succeeds
-- For backend work: Run `ruff check` and `ruff format` to verify Python code quality
-- Fix all build errors, type errors, and linting issues before marking tasks complete
-- Ensure all imports are correct and dependencies are installed
-- Use `.jsx` extension for files containing JSX syntax, `.js` for plain JavaScript
-- Use JSDoc comments for type annotations instead of TypeScript files
+**Frontend**:
+- Run `pnpm build` to verify JSDoc type checking and Vite build
+- Fix all build errors, type errors, and linting issues
+- Ensure all imports are correct and dependencies installed
+
+**Backend**:
+- Run `ruff check` and `ruff format` to verify Python code quality
+- Ensure Kubernetes resource limits are updated in both:
+  1. `helm/resume-showcase/values.yaml` (StatefulSets)
+  2. `backend/session_provisioner.py` line 226-229 (Job pods)
+- Test Docker builds succeed before pushing
+
+**Infrastructure**:
+- Run `helm lint helm/resume-showcase/` before deploying
+- Run `helm template resume-showcase helm/resume-showcase/` to validate templates
+- Verify StatefulSet rollouts complete: `kubectl rollout status statefulset/<name> -n resume-showcase`

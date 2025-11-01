@@ -20,7 +20,7 @@ Accomplished Cloud Solutions Architect with 17+ years of experience building and
 
 **CI/CD & Version Control:** Git, GitLab, GitHub, Bitbucket, Jenkins, GitHub Actions
 
-**Container & Orchestration:** Kubernetes, Docker, EKS, ECS, Helm, Docker Compose
+**Container & Orchestration:** Kubernetes, Docker, EKS, ECS, Helm, ArgoCD
 
 **Infrastructure as Code:** AWS CDK, CloudFormation, Terraform, Ansible
 

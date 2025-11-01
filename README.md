@@ -9,7 +9,8 @@ Interactive demo showcasing real-time latency monitoring with per-session Kubern
 This project demonstrates advanced Kubernetes orchestration patterns with a warm pod pool system:
 
 - **Latency Monitoring**: Real-time WebSocket ping/pong latency visualization in the browser
-- **Session Provisioner**: HTTP service that maintains a pool of 4 warm pods ready for instant session assignment
+- **Session Provisioner StatefulSet**: HTTP service that maintains a pool of 2 warm pods ready for instant session assignment
+- **WebSocket Server StatefulSet**: 3 replicas for load-balanced connections
 - **Dynamic Pod Assignment**: Sub-second session startup by assigning pre-warmed pods from the pool
 - **Auto-Replenishment**: Background process automatically maintains the warm pod pool
 - **Self-Healing Infrastructure**: Pods automatically recreate on failure, demonstrating Kubernetes resilience
@@ -43,8 +44,8 @@ This project demonstrates advanced Kubernetes orchestration patterns with a warm
 │       ├── values.yaml              # Default configuration values
 │       └── templates/               # Kubernetes resource templates
 │           ├── namespace.yaml       # Namespace
-│           ├── websocket-*.yaml     # WebSocket server resources
-│           ├── provisioner-*.yaml   # Session provisioner resources
+│           ├── websocket-statefulset.yaml   # WebSocket server StatefulSet
+│           ├── provisioner-statefulset.yaml # Session provisioner StatefulSet
 │           └── ingress.yaml         # Traefik ingress configuration
 ├── k8s/                             # Raw Kubernetes manifests (legacy EKS deployment)
 ├── terraform/                       # Terraform IaC for AWS EKS (legacy)
@@ -64,12 +65,14 @@ This project demonstrates advanced Kubernetes orchestration patterns with a warm
 
 ## Features
 
-- **Warm Pod Pool**: 4 pre-provisioned pods for instant session startup
+- **Warm Pod Pool**: 2 pre-provisioned pods for instant session startup
+- **StatefulSet Architecture**: Ordered deployment with stable DNS names
 - **Real-time Latency Monitoring**: WebSocket-based ping/pong latency visualization
 - **Per-Session Isolation**: Each browser session gets a dedicated Kubernetes pod
 - **Self-Healing Demo**: Users can terminate their pod and observe automatic replacement
-- **Cloud-Native Architecture**: Demonstrates EKS, auto-scaling, warm pool patterns, and resilience
-- **Optimized Deployment**: Docker layer caching for 50-70% faster builds
+- **Cloud-Native Architecture**: Demonstrates StatefulSets, Jobs, warm pool patterns, and resilience
+- **Optimized Resources**: 90% reduction in CPU requests with 100m burst capacity
+- **Docker Layer Caching**: 50-70% faster builds
 
 ## Tech Stack
 
@@ -88,14 +91,16 @@ This project demonstrates advanced Kubernetes orchestration patterns with a warm
 - **WebSocket Server**: aiohttp 3.9 + websockets 12.0
 - **Session Provisioner**: aiohttp HTTP API + Kubernetes Python client 28.1
 - **Container Platform**: Docker (multi-stage builds, ARM64)
-- **Orchestration**: Kubernetes Jobs with warm pod pool
+- **Orchestration**: Kubernetes StatefulSets + Jobs with warm pod pool
 
 ### Infrastructure
 
 **Current (k3s)**:
 - **Container Orchestration**: k3s (lightweight Kubernetes)
 - **Infrastructure as Code**: Helm 3 charts
+- **Workload Types**: StatefulSets for core services, Jobs for session pods
 - **Networking**: Traefik ingress controller (built-in with k3s)
+- **Service Discovery**: Headless services for StatefulSet stable DNS
 - **CI/CD**: GitHub Actions
 - **Container Registry**: Docker Hub or local registry
 - **TLS**: cert-manager with Let's Encrypt
@@ -125,7 +130,7 @@ python server.py
 ```bash
 cd backend
 python session_provisioner.py
-# Requires kubectl configured with EKS cluster access
+# Requires kubectl configured with cluster access
 ```
 
 ### Frontend (Local Testing)
@@ -179,13 +184,15 @@ helm install resume-showcase ./helm/resume-showcase \
 
 # 5. Verify deployment
 kubectl get all -n resume-showcase
+kubectl get statefulsets -n resume-showcase
 kubectl get ingress -n resume-showcase
 ```
 
 **Benefits**:
 - Run on your own hardware (no cloud costs)
-- Simple Helm-based deployment
+- Simple Helm-based deployment with StatefulSets
 - Built-in Traefik ingress with k3s
+- Stable pod names and DNS via StatefulSets
 - Easy to customize and maintain
 - Fast local development cycle
 
@@ -225,6 +232,7 @@ GitHub Actions workflows automate builds and deployments:
 - **Session Metrics**: Track session creation time and pod assignment
 - **Latency Monitoring**: Frontend displays real-time WebSocket latency
 - **Kubernetes Health**: Liveness/readiness probes ensure pod health
+- **StatefulSet Status**: `kubectl get statefulsets -n resume-showcase`
 
 ## Generative AI Integration
 

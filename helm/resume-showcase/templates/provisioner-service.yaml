@@ -6,7 +6,9 @@ metadata:
   labels:
     {{- include "resume-showcase.provisioner.labels" . | nindent 4 }}
 spec:
-  type: {{ .Values.sessionProvisioner.service.type }}
+  type: ClusterIP
+  clusterIP: None  # Headless service for StatefulSet
+  publishNotReadyAddresses: true
   selector:
     {{- include "resume-showcase.provisioner.selectorLabels" . | nindent 4 }}
   ports:
