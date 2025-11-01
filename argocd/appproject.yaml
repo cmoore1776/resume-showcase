@@ -50,6 +50,11 @@ spec:
       kind: RoleBinding
     - group: policy
       kind: PodDisruptionBudget
+    # Traefik resources for ingress routing
+    - group: traefik.io
+      kind: IngressRoute
+    - group: traefik.io
+      kind: Middleware
 
   # Deny certain resources (none for now)
   namespaceResourceBlacklist: []
