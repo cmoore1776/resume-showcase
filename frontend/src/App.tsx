@@ -48,9 +48,6 @@ function App() {
   const [podName, setPodName] = useState<string | null>(null)
 
   /** @type {[string | null, Function]} */
-  const [region, setRegion] = useState<string | null>(null)
-
-  /** @type {[string | null, Function]} */
   const [error, setError] = useState<string | null>(null)
 
   /** @type {React.MutableRefObject<WebSocket | null>} */
@@ -113,7 +110,6 @@ function App() {
         const now = Date.now()
 
         setPodName(data.pod_name)
-        setRegion(data.region)
 
         setLatencyData(prev => {
           const newData = [...prev]
@@ -300,7 +296,6 @@ function App() {
     setLatencyData([])
     setTerminationMarkers([])
     setPodName(null)
-    setRegion(null)
     lastSuccessfulPingRef.current = null
   }, [])
 
@@ -360,7 +355,6 @@ function App() {
           <ConnectionStatus
             status={connectionStatus}
             podName={podName}
-            region={region}
             error={error}
           />
 

@@ -43,7 +43,6 @@ const getStatusConfig = (status: ConnectionState) => {
 interface ConnectionStatusProps {
   status: ConnectionState
   podName: string | null
-  region: string | null
   error: string | null
 }
 
@@ -52,11 +51,10 @@ interface ConnectionStatusProps {
  * @param {Object} props
  * @param {ConnectionState} props.status - Current connection status
  * @param {string | null} props.podName - Name of the connected pod
- * @param {string | null} props.region - AWS region of the connected pod
  * @param {string | null} props.error - Error message if any
  * @returns {JSX.Element}
  */
-function ConnectionStatus({ status, podName, region, error }: ConnectionStatusProps) {
+function ConnectionStatus({ status, podName, error }: ConnectionStatusProps) {
   const config = getStatusConfig(status)
 
   return (
@@ -67,16 +65,6 @@ function ConnectionStatus({ status, podName, region, error }: ConnectionStatusPr
             <div className={`w-3 h-3 rounded-full ${config.color} shadow-lg`}></div>
             <span className="text-lg font-semibold">{config.text}</span>
           </div>
-
-          {region && (
-            <div className="flex items-center gap-3 px-4 py-2 bg-gradient-to-r from-purple-900/30 to-pink-900/30 border border-purple-500/30 rounded-lg">
-              <svg className="w-5 h-5 text-purple-400" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 8l2.55 3.4A1 1 0 0116 13H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z" clipRule="evenodd" />
-              </svg>
-              <span className="text-slate-400 font-medium">Region:</span>
-              <code className="text-purple-300 font-mono text-sm font-semibold">{region}</code>
-            </div>
-          )}
 
           {podName && (
             <div className="flex items-center gap-3 px-4 py-2 bg-gradient-to-r from-blue-900/30 to-cyan-900/30 border border-blue-500/30 rounded-lg animate-glow">
